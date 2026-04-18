@@ -1,0 +1,2 @@
+# openscenario-creator
+Gemini APIを使ったチャット形式のOpenSCENARIOシナリオ自動生成ツール
