@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import xml.dom.minidom
 import json
 import os
@@ -401,25 +402,24 @@ def get_scenario_summary(xml_str: str) -> dict:
     }
 
 def call_gemini(messages: list) -> tuple[str, str | None]:
-    """Call Gemini API, return (text_response, xml_or_None)."""
+    """Call Gemini API (google-genai SDK), return (text_response, xml_or_None)."""
     api_key = os.environ.get("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY", "")
-    genai.configure(api_key=api_key)
-
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=SYSTEM_PROMPT,
-    )
+    client = genai.Client(api_key=api_key)
 
     # Convert messages to Gemini format (role: user/model)
     history = []
     for m in messages[:-1]:
-        history.append({
-            "role": "user" if m["role"] == "user" else "model",
-            "parts": [m["content"]],
-        })
+        role = "user" if m["role"] == "user" else "model"
+        history.append(types.Content(role=role, parts=[types.Part(text=m["content"])]))
 
-    chat = model.start_chat(history=history)
-    response = chat.send_message(messages[-1]["content"])
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=history + [types.Part(text=messages[-1]["content"])],
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            max_output_tokens=4096,
+        ),
+    )
     full_text = response.text
     xml = extract_xml(full_text)
     return full_text, xml
